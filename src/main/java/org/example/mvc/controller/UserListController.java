@@ -1,12 +1,15 @@
 package org.example.mvc.controller;
 
+import org.example.mvc.repository.UserRepository;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
-public class HomeController implements Controller{
-
+public class UserListController implements Controller{
     @Override
     public String handlerRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        return "home";  // HomeController가 호출되면 home 화면을 리턴
+        request.setAttribute("users", UserRepository.findAll());
+        return "/user/list";
     }
 }
