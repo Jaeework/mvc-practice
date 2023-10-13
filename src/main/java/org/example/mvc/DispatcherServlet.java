@@ -23,7 +23,7 @@ public class DispatcherServlet extends HttpServlet{ // 톰캣이 읽어올 수 �
 
     private final static Logger logger = LoggerFactory.getLogger(DispatcherServlet.class);
 
-    private RequestMappingHandler requestMappingHandler;
+    private List<HandlerMapping> handlerMappings;
 
     private List<HandlerAdapter> handlerAdapters;
 
@@ -31,20 +31,31 @@ public class DispatcherServlet extends HttpServlet{ // 톰캣이 읽어올 수 �
 
     @Override
     public void init() throws ServletException {
-        requestMappingHandler = new RequestMappingHandler();
+        RequestMappingHandler requestMappingHandler = new RequestMappingHandler();
         requestMappingHandler.init();
 
-        handlerAdapters = List.of(new SimpleControllerHandlerAdapter());
+        AnnotationHandlerMapping annotationHandlerMapping = new AnnotationHandlerMapping("org.example");
+        annotationHandlerMapping.initialize();
+
+        handlerMappings = List.of(requestMappingHandler, annotationHandlerMapping);
+
+        handlerAdapters = List.of(new SimpleControllerHandlerAdapter(), new AnnotationHandlerAdapter());
         viewResolvers = Collections.singletonList(new JspViewResolver());
     }
 
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         logger.info("[DispatcherServlet] service started.");
+        String requestURI = request.getRequestURI();
+        RequestMethod requestMethod = RequestMethod.valueOf(request.getMethod());
 
         try {
             // handler mapping을 통해 요청 uri에 해당하는 handler를 찾음
-            Controller handler = requestMappingHandler.findHandler(new HandlerKey(RequestMethod.valueOf(request.getMethod()),request.getRequestURI()));
+            Object handler = handlerMappings.stream()
+                            .filter(hm -> hm.findHandler(new HandlerKey(requestMethod, requestURI)) != null)
+                            .map(hm -> hm.findHandler(new HandlerKey(requestMethod, requestURI)))
+                            .findFirst()
+                            .orElseThrow(() -> new ServletException("No handler for [" + requestMethod +", " + requestURI + "]"));
 
             // 해당 handler에 요청을 위임
             // redirect vs forward
